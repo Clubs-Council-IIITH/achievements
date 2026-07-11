@@ -1,0 +1,25 @@
+[project]
+name = "achievements"
+version = "1.0.0"
+description = "Add your description here"
+readme = "README.md"
+
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.139.0",
+    "strawberry-graphql[cli]>=0.320.4",
+    "uvicorn>=0.51.0",
+]
+
+[tool.ruff]
+line-length = 79
+indent-width = 4
+
+[tool.ruff.lint]
+# line too long, unsorted imports, unused imports
+extend-select = ["E501", "I"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
