@@ -20,7 +20,6 @@ schema = strawberry.federation.Schema(
 
 # serve API with FastAPI router
 gql_app = GraphQLRouter(schema)
-
 app = FastAPI(
     title="CC Achievements Microservice",
     description="Handles Achievements",
