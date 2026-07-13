@@ -4,4 +4,4 @@ import strawberry
 
 @strawberry.field
 def sampleQuery(info: Info) -> str:
-    return "Sample Query Result"
+    return "hello"
