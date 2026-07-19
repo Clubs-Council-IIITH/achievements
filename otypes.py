@@ -1,3 +1,7 @@
+"""
+Types and Inputs for achievements subgraph
+"""
+
 import strawberry 
 from typing import Union, Dict
 from strawberry.fastapi import BaseContext

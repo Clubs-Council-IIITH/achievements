@@ -4,12 +4,13 @@ from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter
 from strawberry.tools import create_type
 from db import ensure_achievements_index
-from queries import sampleQuery
+from queries import queries
 from otypes import Context
 from mutations import (
   Mutations
 )
 from mtypes import PyObjectId
+
 @asynccontextmanager
 async def lifespan(app:FastAPI):
     await ensure_achievements_index()
@@ -19,7 +20,7 @@ async def get_context() -> Context:
     return Context()
 
 # create query types
-Query = create_type("Query", [sampleQuery])
+Query = create_type("Query", queries)
 
 # create mutation types
 Mutation = create_type("Mutation", Mutations)
@@ -29,7 +30,6 @@ schema = strawberry.federation.Schema(
     mutation=Mutation,
     scalar_overrides={PyObjectId: PyObjectIdType}
 )
-
 
 
 # serve API with FastAPI router

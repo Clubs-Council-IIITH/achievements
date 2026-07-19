@@ -197,6 +197,8 @@ async def approveAchievement(achievement_id: str, info:Info) -> AchievementDetai
         raise Exception("Achievement not updated in the database")
     achievement_ref = await achievementsdb.find_one(query)
     return AchievementDetails.from_pydantic(Achievement.model_validate(achievement_ref))
+
+
 @strawberry.mutation
 async def rejectAchievement(achievement_id:str, info:Info) -> AchievementDetails:
     """
