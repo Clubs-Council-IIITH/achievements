@@ -9,7 +9,8 @@ import strawberry
 from db import achievementsdb
 from models import Achievement
 from otypes import AchievementDetails, Info
-from utils import get_club, get_user
+from mtypes import Achievement_Status_State
+from utils import get_club, get_user, get_clubs
 
 
 @strawberry.field
@@ -17,10 +18,21 @@ async def allAchievements(info: Info) -> List[AchievementDetails]:
     """
     Fetches all the achievements
 
+    Args:
+        info (otypes.Info): User metadata and cookies.
+
     Returns
-    (List[otypes.AchievementDetails]): A list of all Achievements
+        (List[otypes.AchievementDetails]): A list of all Achievements
     """
-    achievements = await achievementsdb.find().to_list(length=None)
+    user = info.context.user
+    achievements = []
+
+    if (user is not None and user["role"] in ["cc", "slo"]):
+        achievements = await achievementsdb.find().to_list(length=None)
+    else:
+        achievements =await achievementsdb.find({"status.state": "approved"}).to_list(
+            length=None
+        )
 
     return [
         AchievementDetails.from_pydantic(Achievement.model_validate(achievement))
@@ -29,7 +41,7 @@ async def allAchievements(info: Info) -> List[AchievementDetails]:
 
 
 @strawberry.field
-async def achievementById(achievementid: str) -> AchievementDetails:
+async def achievementById(achievementid: str, info: Info) -> AchievementDetails:
     """
     Fetches an achievement with the given id
 
@@ -41,13 +53,39 @@ async def achievementById(achievementid: str) -> AchievementDetails:
         (otypes.AchievementDetails): Detaile regarding the achievement with the given id
 
     Raises:
-        Exception: Achievement with given code does not exist.
+        Exception: Cannot access the achievement. Either you do not have permission to access it or it does not exist.
 
     """
-    achievement = await achievementsdb.find_one({"_id": ObjectId(achievementid)})
+    user = info.context.user
+    achievement = await achievementsdb.find_one({"_id": achievementid})
 
-    if (achievement is None):
-        raise Exception("Achievement with given id does not exist")
+    allclubs = await get_clubs(info.context.cookies)
+    list_allclubs = list()
+    for club in allclubs:
+        list_allclubs.append(club["cid"])
+
+    if (
+        achievement is None
+        or (
+            achievement["status"]["state"]
+            not in {Achievement_Status_State.approved.value}
+            and (
+                user is None
+                or (
+                    user["role"] not in {"cc", "slc", "slo"}
+                    and (
+                        user["role"] != "club"
+                        or (
+                            user["uid"] not in achievement["clubids"]
+                        )
+                    )
+                )
+            )
+        )
+    ):
+        raise Exception(
+            "Can not access achievement. Either it does not exist or user does not have perms."  
+        )
     
     return AchievementDetails.from_pydantic(Achievement.model_validate(achievement))
 
@@ -65,16 +103,33 @@ async def achievementsByClub(cid: str, info:Info) -> List[AchievementDetails]:
     (List[otypes.AchievementDetails]): A list of Achievements which matches the cubid
 
     """
+    user = info.context.user
     club = await get_club(cid, info.context.cookies)
 
     if club is None:
         raise Exception("Club with given id does not exist")
     
-    achievements = await achievementsdb.find(
-        {
-        "clubids": cid,
-        }
-    ).to_list(None)
+    can_access = (
+        user is not None
+        and (
+            user["role"] in ["cc", "slo"]
+            or (
+                user["role"] == "club"
+                and user["uid"] == club["cid"]  
+            )
+        )
+    )
+
+    if can_access:
+        achievements = await achievementsdb.find(
+            {
+            "clubids": cid,
+            }
+        ).to_list(None)
+    else:
+        achievements = await achievementsdb.find(
+            {"clubids": cid, "status.state": "approved"}
+        ).to_list(None)
 
     return [
         AchievementDetails.from_pydantic(Achievement.model_validate(achievement))
@@ -95,17 +150,21 @@ async def achievementsByUser(uid: str, info:Info) -> List[AchievementDetails]:
     (List[otypes.AchievementDetails]): A list of Achievements which matches the userid
 
     """
+    user = info.context.user
 
-    # user = await get_user(uid, info.context.cookies)
+    # given_user = await get_user(uid, info.context.cookies)
 
-    # if user is None:
+    # if given_user is None:
     #     raise Exception("User with given id does not exist")
-    
-    achievements = await achievementsdb.find(
-        {
-        "userids": uid,
-        }
-    ).to_list(None)
+
+    if (user is not None and user["role"] in ["cc", "slo"]):
+        achievements = await achievementsdb.find(
+            {"userids": uid}
+        ).to_list(None)
+    else:
+        achievements = await achievementsdb.find(
+            {"userids": uid,"status.state": "approved"}
+        ).to_list(None)
 
     return [
         AchievementDetails.from_pydantic(Achievement.model_validate(achievement))
