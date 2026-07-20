@@ -121,6 +121,13 @@ class InputEditAchievementsBaseModel(BaseModel):
     blog_links :List[str] | None =None
     image_links:List[str]  | None = None
     dateperiod: Tuple[date, date] | None = None
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        # extra="forbid",
+        str_strip_whitespace=True,
+    )
     
 
 

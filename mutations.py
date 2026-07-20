@@ -20,8 +20,8 @@ from utils import TIMEZONE
 
 @strawberry.mutation
 async def createAchievement(details: CreateAchievementDetails, info: Info) -> AchievementDetails:
-    user = info.context.user
     
+    user = info.context.user
     # check if user is authenticated and has enough permissions
     if (not user or
         user['role'] not in ['club', 'slo', 'cc'] or
@@ -39,11 +39,11 @@ async def createAchievement(details: CreateAchievementDetails, info: Info) -> Ac
         if(len(club.keys())==0):
             raise Exception("Invalid Club id")
     
-    #checks to identify if all user ids are valid
-    # for user_id in details.userids:
-    #     user_result = await get_user(user_id, cookies=info.context.cookies)
-    #     if(not user_result or len(user_result.keys())==0):
-    #         raise Exception("invalid user id")
+    # checks to identify if all user ids are valid
+    for user_id in details.userids:
+        user_result = await get_user(user_id, cookies=info.context.cookies)
+        if(not user_result or len(user_result.keys())==0):
+            raise Exception("invalid user id")
         
     
     #checks to identify if starting date is lower or equal to ending date
@@ -59,6 +59,7 @@ async def createAchievement(details: CreateAchievementDetails, info: Info) -> Ac
                                         dateperiod=details.dateperiod)
     achievements_instance.status.submission_datetime = datetime.now(TIMEZONE)
     #if cc or slo, achievement is approved
+   
     if user["role"] in ["slo", "cc"]:
         achievements_instance.status.state = Achievement_Status_State.approved
         achievements_instance.status.approved_datetime = achievements_instance.status.submission_datetime
@@ -79,11 +80,13 @@ async def createAchievement(details: CreateAchievementDetails, info: Info) -> Ac
 
 @strawberry.mutation
 async def editAchievement(details:EditAchievementDetails, info:Info) -> AchievementDetails:
-    user = info.context.user
+    user = info.context.user 
     if not user:
         raise Exception("You are not authenticated")
     #check if appropriate achievement even exists
-    current_ref = await achievementsdb.find_one({"_id":details.id})
+    with open("logs.txt", "w") as f:
+        f.write(str(type(details.id))+ str(details.id))
+    current_ref = await achievementsdb.find_one({"_id": str(details.id)})
     if not current_ref:
         raise Exception("No achievement with that particular id")
     if current_ref["status"]["state"] == "deleted":
@@ -131,13 +134,13 @@ async def editAchievement(details:EditAchievementDetails, info:Info) -> Achievem
         updates["dateperiod"] = details.dateperiod
     updates["status.last_updated_datetime"] = datetime.now(TIMEZONE)
     updates["status.last_updated_by"] = user["uid"]
-    query = {"_id": details.id}
+    query = {"_id": str(details.id)}
     updation = {"$set": updates}
 
     updated_ref = await achievementsdb.update_one(query, updation)
     if updated_ref.matched_count == 0:
         raise Exception("Update failed") 
-    achievement_ref = await achievementsdb.find_one({"_id":details.id})
+    achievement_ref = await achievementsdb.find_one({"_id": str(details.id)})
     return AchievementDetails.from_pydantic(Achievement.model_validate(achievement_ref))
 
 
