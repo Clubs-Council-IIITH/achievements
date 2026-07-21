@@ -41,6 +41,7 @@ class Achievement(BaseModel):
     attributes:
         id (mtypes.PyObjectId): id of the achievement
         name(str): name of the achievement
+        code(str): An unique Achievement code
         clubids(List[str]):code of the club
         achievement_type(mtypes.Achievement_Type): Type of achievement
         userids(List[str]): Member Ids of all members involved in the achievement
@@ -51,6 +52,7 @@ class Achievement(BaseModel):
     """
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     name:very_short_str_type
+    code : str| None = None
     clubids:List[str]
     achievement_type:Achievement_Type
     userids: List[str]
@@ -103,6 +105,7 @@ class InputEditAchievementsBaseModel(BaseModel):
         Model for receiving input details of achievements
         Attributes:
                 id (mtypes.PyObjectId): id of the achievement
+                code(str): An Unique achievement code for the achievement
                 name(str): name of the achievement
                 clubids(List[str]):code of the club
                 achievement_type(mtypes.Achievement_Type): Type of achievement

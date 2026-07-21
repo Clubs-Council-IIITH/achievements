@@ -1,7 +1,8 @@
 from httpx import AsyncClient
 from typing import List
+import secrets
 from zoneinfo import ZoneInfo
-
+from datetime import datetime
 TIMEZONE = ZoneInfo("Asia/Kolkata")
 
 async def get_user(uid, cookies=None) -> dict | None:
@@ -103,3 +104,24 @@ async def get_club(cid, cookies=None) -> dict:
         return response.json()["data"]["club"]
     except Exception:
         return {}
+
+
+
+
+
+
+async def get_achievement_code(submissiontime: datetime) -> str:
+    """
+    generate achievement code based on submission time and date
+
+    Args:
+        submissiontime(datetime): time of submitting the achievement
+
+    Returns:
+        (str): event code in the format YYYYMMDDHHMMSSXXXX
+    """
+
+    event_code_suffix = secrets.token_hex(2).upper()
+    event_code_prefix = submissiontime.strftime("%Y%m%d%H%M%S")
+    return f"{event_code_prefix}{event_code_suffix}"  #YYYYMMDDHHSSXXXX
+

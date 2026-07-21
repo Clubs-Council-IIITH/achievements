@@ -9,7 +9,8 @@ from mtypes import (
 )
 from utils import (
     get_club,
-    get_user
+    get_user,
+    get_achievement_code
 )
 from fastapi.encoders import jsonable_encoder
 from datetime import datetime
@@ -24,7 +25,7 @@ async def createAchievement(details: CreateAchievementDetails, info: Info) -> Ac
     user = info.context.user
     # check if user is authenticated and has enough permissions
     if (not user or
-        user['role'] not in ['club', 'slo', 'cc'] or
+        user['role'] not in ['club', 'slo', 'cc', 'slc'] or
         (user['role']=='club' and user['uid'] not in details.clubids)):
         raise Exception("You are not authorized to  edit this achievement")
     
@@ -59,7 +60,8 @@ async def createAchievement(details: CreateAchievementDetails, info: Info) -> Ac
                                         dateperiod=details.dateperiod)
     achievements_instance.status.submission_datetime = datetime.now(TIMEZONE)
     #if cc or slo, achievement is approved
-   
+    code=await get_achievement_code(achievements_instance.status.submission_datetime)
+    achievements_instance.code = code
     if user["role"] in ["slo", "cc"]:
         achievements_instance.status.state = Achievement_Status_State.approved
         achievements_instance.status.approved_datetime = achievements_instance.status.submission_datetime
@@ -84,8 +86,6 @@ async def editAchievement(details:EditAchievementDetails, info:Info) -> Achievem
     if not user:
         raise Exception("You are not authenticated")
     #check if appropriate achievement even exists
-    with open("logs.txt", "w") as f:
-        f.write(str(type(details.id))+ str(details.id))
     current_ref = await achievementsdb.find_one({"_id": str(details.id)})
     if not current_ref:
         raise Exception("No achievement with that particular id")
@@ -95,7 +95,7 @@ async def editAchievement(details:EditAchievementDetails, info:Info) -> Achievem
         raise Exception("Rejected achievements cannot be edited")
     
     #check if user has appropriate permissions
-    if user["role"] not in ["slo", "cc"]:
+    if user["role"] not in ["slo", "cc", "slc"]:
         raise Exception("You are not authorized to  edit this achievement")
     if details.dateperiod is not None:
         if(details.dateperiod[0]>details.dateperiod[1]):
@@ -153,7 +153,7 @@ async def deleteAchievement(achievement_id:str,info:Info) ->AchievementDetails:
     if not user:
         raise Exception("You are not authenticated")
 
-    if user["role"] not in ["slo", "cc"]:
+    if user["role"] not in ["slo", "cc", "slc"]:
         raise Exception("You do not have the permissions to delete an achievement")
 
     query = {"_id": achievement_id}
@@ -180,7 +180,7 @@ async def approveAchievement(achievement_id: str, info:Info) -> AchievementDetai
     user = info.context.user
     if not user:
         raise Exception("You are not authenticated")
-    if user["role"] not in ["slo", "cc" ]:
+    if user["role"] not in ["slo", "cc" , "slc"]:
         raise Exception("You do not have the permissions to do this change")
     query = {"_id": achievement_id}
     current_ref = await achievementsdb.find_one(query)
@@ -210,7 +210,7 @@ async def rejectAchievement(achievement_id:str, info:Info) -> AchievementDetails
     user = info.context.user
     if not user:
         raise Exception("You are not authenticated")
-    if user["role"] not in ["slo", "cc" ]:
+    if user["role"] not in ["slo", "cc", "slc" ]:
         raise Exception("You do not have the permissions to do this change")
     query = {"_id": achievement_id}
     current_ref = await achievementsdb.find_one(query)
