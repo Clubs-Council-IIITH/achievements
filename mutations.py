@@ -21,13 +21,30 @@ from utils import TIMEZONE
 
 @strawberry.mutation
 async def createAchievement(details: CreateAchievementDetails, info: Info) -> AchievementDetails:
-    
+    """
+    Creates an achievement
+    Args:
+        details(otypes.CreateAchievementDetails): contains all the fields required to create a new achievement
+    Returns:
+          (otypes.AchievementDetails): Detaile regarding the achievement with the given id
+    Raises:
+        You are not authenticated
+        You do not have the permissions to create this achievement
+        User ids cannot be left empty
+        Clubids cannot be left empty
+        Contains an invalid user id
+        Contains an invalid club id
+        Starting date is greater than ending date
+        Insertion failed in the database
+    """
+
     user = info.context.user
     # check if user is authenticated and has enough permissions
-    if (not user or
-        user['role'] not in ['club', 'slo', 'cc', 'slc'] or
+    if not user:
+        raise Exception("You are not authenticated")
+    if (user['role'] not in ['club', 'slo', 'cc', 'slc'] or
         (user['role']=='club' and user['uid'] not in details.clubids)):
-        raise Exception("You are not authorized to  edit this achievement")
+        raise Exception("You do not have the permissions to create this achievement")
     
     if(len(details.userids)==0):
         raise Exception("User ids cannot be left empty")
@@ -38,13 +55,13 @@ async def createAchievement(details: CreateAchievementDetails, info: Info) -> Ac
     for club_id in details.clubids:
         club = await get_club(club_id, cookies= info.context.cookies)
         if(len(club.keys())==0):
-            raise Exception("Invalid Club id")
+            raise Exception("Contains an invalid club id")
     
     # checks to identify if all user ids are valid
     for user_id in details.userids:
         user_result = await get_user(user_id, cookies=info.context.cookies)
         if(not user_result or len(user_result.keys())==0):
-            raise Exception("invalid user id")
+            raise Exception("Contains an invalid user id")
         
     
     #checks to identify if starting date is lower or equal to ending date
@@ -68,12 +85,12 @@ async def createAchievement(details: CreateAchievementDetails, info: Info) -> Ac
         achievements_instance.status.approved_by = user['uid']
     else:
         achievements_instance.status.state = Achievement_Status_State.pending
-
-
-
-    created_id = (
-        await achievementsdb.insert_one(jsonable_encoder(achievements_instance))
-    ).inserted_id
+    try:
+        created_id = (
+            await achievementsdb.insert_one(jsonable_encoder(achievements_instance))
+        ).inserted_id
+    except:
+        raise Exception("Insertion failed in the database")
     created_achievement = Achievement.model_validate(
         (await achievementsdb.find_one({"_id": created_id}))
         )
@@ -82,13 +99,30 @@ async def createAchievement(details: CreateAchievementDetails, info: Info) -> Ac
 
 @strawberry.mutation
 async def editAchievement(details:EditAchievementDetails, info:Info) -> AchievementDetails:
+    """
+    Edits an achievement
+    Args:
+        details(otypes.EditAchievementDetails): All the input details to change and the id of the achievement to be edited
+    Returns:
+        (otypes.AchievementDetails): Detaile regarding the achievement with the given id
+    Raises:
+        You are not authenticated
+        Achievement does not exist
+        Deleted achievements cannot be edited
+        Rejected achievements cannot be edited
+        You do not have permissions to edit this achievement
+        Starting date is greater than ending date
+        Contains an invalid clubid
+        Contains an invalid userid
+        Update failed in the database
+    """
     user = info.context.user 
     if not user:
         raise Exception("You are not authenticated")
     #check if appropriate achievement even exists
     current_ref = await achievementsdb.find_one({"_id": str(details.id)})
     if not current_ref:
-        raise Exception("No achievement with that particular id")
+        raise Exception("Achievement does not exist")
     if current_ref["status"]["state"] == "deleted":
         raise Exception("Deleted achievements cannot be edited")
     elif current_ref["status"]["state"] =="rejected":
@@ -96,7 +130,7 @@ async def editAchievement(details:EditAchievementDetails, info:Info) -> Achievem
     
     #check if user has appropriate permissions
     if user["role"] not in ["slo", "cc", "slc"]:
-        raise Exception("You are not authorized to  edit this achievement")
+        raise Exception("You do not have permissions to edit this achievement")
     if details.dateperiod is not None:
         if(details.dateperiod[0]>details.dateperiod[1]):
             raise Exception("Starting date is greater than ending date")
@@ -106,14 +140,14 @@ async def editAchievement(details:EditAchievementDetails, info:Info) -> Achievem
         for club_id in details.clubids:
             club = await get_club(club_id, cookies= info.context.cookies)
             if(len(club.keys())==0):
-                raise Exception("Invalid Club id")
+                raise Exception("Contains an invalid clubid")
         
     #checks to identify if all user ids are valid
     if details.userids is not None:
         for user_id in details.userids:
             user_result = await get_user(user_id, cookies=info.context.cookies)
             if(not user_result or len(user_result.keys())==0):
-                raise Exception("invalid user id")
+                raise Exception("Contains an invalid userid")
         
     updates = {}
     if details.name is not None:
@@ -139,7 +173,7 @@ async def editAchievement(details:EditAchievementDetails, info:Info) -> Achievem
 
     updated_ref = await achievementsdb.update_one(query, updation)
     if updated_ref.matched_count == 0:
-        raise Exception("Update failed") 
+        raise Exception("Update failed in the database") 
     achievement_ref = await achievementsdb.find_one({"_id": str(details.id)})
     return AchievementDetails.from_pydantic(Achievement.model_validate(achievement_ref))
 
@@ -147,7 +181,17 @@ async def editAchievement(details:EditAchievementDetails, info:Info) -> Achievem
 @strawberry.mutation
 async def deleteAchievement(achievement_id:str,info:Info) ->AchievementDetails:
     """
-    Mutation for deleting achievement
+    Deletes achievement
+    Args:
+        achievement_id(str):id of achievement to be deleted
+    Returns:
+        (otypes.AchievementDetails): Detaile regarding the achievement with the given id
+    Raises:
+        You are not authenticated
+        You do not have the permissions to delete an achievement
+        Achievement not found
+        Achievement was already deleted
+        Achievement not updated in the database
     """
     user = info.context.user
     if not user:
@@ -175,7 +219,18 @@ async def deleteAchievement(achievement_id:str,info:Info) ->AchievementDetails:
 @strawberry.mutation
 async def approveAchievement(achievement_id: str, info:Info) -> AchievementDetails:
     """
-    Mutation for approving achievement
+    Approves achievement
+    Args:
+        achievement_id(str): id of achievement to be approved
+    Returns:
+    (otypes.AchievementDetails): Detaile regarding the achievement with the given id
+    Raises:
+        You are not authenticated
+        You do not have the permissions to do this change
+        Achievement does not exist
+        Deleted achievements cannot be approved
+        Achievement has already been approved
+        Achievement not updated in the database
     """
     user = info.context.user
     if not user:
@@ -205,7 +260,20 @@ async def approveAchievement(achievement_id: str, info:Info) -> AchievementDetai
 @strawberry.mutation
 async def rejectAchievement(achievement_id:str, info:Info) -> AchievementDetails:
     """
-    Mutation for rejecting achievements by SLO or cc
+    Rejects an achievement
+    Args:
+        achievement_id(str): unique id of the achievement to be rejected
+    Returns:
+        (otypes.AchievementDetails): Detaile regarding the achievement with the given id
+
+   Raises:
+        You are not authenticated
+        You do not that the permissions to do this change
+        Achievement does not exist
+        Deleted achievements cannot be rejected
+        Approved achievements cannot be rejected
+        Achievement has already been rejected
+        Achievement not updated in database
     """
     user = info.context.user
     if not user:
@@ -233,4 +301,8 @@ async def rejectAchievement(achievement_id:str, info:Info) -> AchievementDetails
     achievement_ref = await achievementsdb.find_one(query)
     return AchievementDetails.from_pydantic(Achievement.model_validate(achievement_ref))
 
-Mutations= [rejectAchievement, approveAchievement, createAchievement, deleteAchievement, editAchievement ]
+Mutations= [rejectAchievement, 
+            approveAchievement, 
+            createAchievement, 
+            deleteAchievement, 
+            editAchievement ]
