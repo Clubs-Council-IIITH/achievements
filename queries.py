@@ -96,7 +96,7 @@ async def achievementsByClub(cid: str, info:Info) -> List[AchievementDetails]:
     Fetches list of achievements with the give clubid
 
     Arg:
-    clubid (str) : The id of the club whose achievements are to be fetched.
+    cid (str) : The id of the club whose achievements are to be fetched.
     info (otypes.Info): The context information of user for the request.
 
     Returns:
@@ -152,10 +152,10 @@ async def achievementsByUser(uid: str, info:Info) -> List[AchievementDetails]:
     """
     user = info.context.user
 
-    # given_user = await get_user(uid, info.context.cookies)
+    curr_user = await get_user(uid, info.context.cookies)
 
-    # if given_user is None:
-    #     raise Exception("User with given id does not exist")
+    if curr_user is None:
+        raise Exception("User with given id does not exist")
 
     if (user is not None and user["role"] in ["cc", "slo"]):
         achievements = await achievementsdb.find(
