@@ -2,9 +2,7 @@ from bson import ObjectId
 from enum import StrEnum, auto
 from pydantic_core import core_schema
 from pydantic import (
-    StringConstraints,
-    BeforeValidator,
-    TypeAdapter
+    StringConstraints,    
 )
 from typing import (
     Annotated, 
@@ -68,5 +66,16 @@ class Achievement_Type(StrEnum):
     project = auto()
     competition = auto()
     other = auto()
+
+@strawberry.enum
+class Achievement_Status_State(StrEnum):
+    """
+    Enum to denote the state of the achievement
+    """
+    approved = auto()
+    pending = auto()
+    deleted = auto()
+    rejected = auto()
+
 
 
