@@ -170,6 +170,7 @@ async def editAchievement(details:EditAchievementDetails, info:Info) -> Achievem
     updates["status.last_updated_by"] = user["uid"]
     query = {"_id": str(details.id)}
     updation = {"$set": updates}
+    updation = jsonable_encoder(updation)
 
     updated_ref = await achievementsdb.update_one(query, updation)
     if updated_ref.matched_count == 0:
