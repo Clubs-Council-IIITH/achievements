@@ -13,6 +13,7 @@ from typing import (
 from mtypes import (
     PyObjectId,
     very_short_str_type,
+    short_str_type,
     long_str_type,
     Achievement_Type,
     Achievement_Status_State
@@ -51,16 +52,17 @@ class Achievement(BaseModel):
         dateperiod(Tuple[date, date]): The start and end dates of the achievement
     """
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    name:very_short_str_type
+    name: very_short_str_type
     code : str| None = None
     clubids:List[str]
     achievement_type:Achievement_Type
     userids: List[str]
-    content:long_str_type
+    content: long_str_type
     blog_links :List[str] =[]
     image_links:List[str] = []
     dateperiod: Tuple[date, date]
     status: Achievement_Status= Field(default_factory=Achievement_Status)
+    venue: short_str_type | None = None
 
     @field_validator("dateperiod")
     @classmethod
@@ -98,6 +100,7 @@ class InputCreateAchievementsBaseModel(BaseModel):
     blog_links :List[str] =[]
     image_links:List[str] = []
     dateperiod: Tuple[date, date]
+    venue: short_str_type 
 
 
 class InputEditAchievementsBaseModel(BaseModel):
@@ -124,6 +127,7 @@ class InputEditAchievementsBaseModel(BaseModel):
     blog_links :List[str] | None =None
     image_links:List[str]  | None = None
     dateperiod: Tuple[date, date] | None = None
+    venue: short_str_type | None = None
 
     model_config = ConfigDict(
         populate_by_name=True,
