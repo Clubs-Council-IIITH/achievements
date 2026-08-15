@@ -74,7 +74,8 @@ async def createAchievement(details: CreateAchievementDetails, info: Info) -> Ac
                                         content= details.content, 
                                         blog_links=details.blog_links,
                                         image_links=details.image_links,
-                                        dateperiod=details.dateperiod)
+                                        dateperiod=details.dateperiod,
+                                        venue=details.venue,)
     achievements_instance.status.submission_datetime = datetime.now(TIMEZONE)
     #if cc or slo, achievement is approved
     code=await get_achievement_code(achievements_instance.status.submission_datetime)
@@ -166,6 +167,8 @@ async def editAchievement(details:EditAchievementDetails, info:Info) -> Achievem
         updates["image_links"] = details.image_links
     if details.dateperiod is not None:
         updates["dateperiod"] = details.dateperiod
+    if details.venue is not None:
+        updates["venue"] = details.venue
     updates["status.last_updated_datetime"] = datetime.now(TIMEZONE)
     updates["status.last_updated_by"] = user["uid"]
     query = {"_id": str(details.id)}
