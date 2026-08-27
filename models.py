@@ -100,7 +100,7 @@ class InputCreateAchievementsBaseModel(BaseModel):
     blog_links :List[str] =[]
     image_links:List[str] = []
     dateperiod: Tuple[date, date]
-    venue: short_str_type 
+    venue: short_str_type | None = None
 
 
 class InputEditAchievementsBaseModel(BaseModel):

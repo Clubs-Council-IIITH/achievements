@@ -171,6 +171,29 @@ async def achievementsByUser(uid: str, info:Info) -> List[AchievementDetails]:
         for achievement in achievements
     ]
 
+@strawberry.field
+async def achievementid(code: str, info: Info) -> str:
+    """
+    method returns achievementid of the achievement with the given achievement code
+
+    Args: 
+        code (str): The code of the achievement to be fetched.
+        info (otypes.Info): The context information of user for the request.
+
+    Returns:
+        (str): The id of the achievement with the given code.
+
+    Raises:
+        Exception: Achievement with given code does not exist
+    """
+
+    achievement = await achievementsdb.find_one({"code": code})
+
+    if achievement is None:
+        raise Exception("Achievement with given code does not exist.")
+
+    return achievement["_id"]
+
 
 #register all the queries
 queries = [
@@ -178,4 +201,5 @@ queries = [
     achievementById,
     achievementsByUser,
     achievementsByClub,
+    achievementid,
 ]

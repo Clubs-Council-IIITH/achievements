@@ -17,7 +17,21 @@ from datetime import datetime
 from models import Achievement
 import strawberry
 from db import achievementsdb
-from utils import TIMEZONE
+from mailing import trigger_mail
+from mailing_templates import (
+    CREATE_ACHIEVEMENT_SUBJECT,
+    CREATE_ACHIEVEMENT_BODY,
+    APPROVED_ACHIEVEMENT_SUBJECT,
+    APPROVED_ACHIEVEMENT_BODY_FOR_CLUB,
+    REJECT_ACHIEVEMENT_SUBJECT,
+    REJECT_ACHIEVEMENT_BODY_FOR_CLUB
+)
+from utils import (
+    TIMEZONE,
+    get_role_emails,
+    get_club_details,
+    get_achievement_link,
+)
 
 @strawberry.mutation
 async def createAchievement(details: CreateAchievementDetails, info: Info) -> AchievementDetails:
@@ -94,7 +108,35 @@ async def createAchievement(details: CreateAchievementDetails, info: Info) -> Ac
         raise Exception("Insertion failed in the database")
     created_achievement = Achievement.model_validate(
         (await achievementsdb.find_one({"_id": created_id}))
+        )  
+
+    ## trigger mail notification
+    mail_content = created_achievement.content
+    if mail_content == "":
+        mail_content = "N/A"
+
+    mail_to = []
+    mail_uid = user["uid"]
+
+    if created_achievement.status.state == Achievement_Status_State.pending:
+        club = await get_club_details(mail_uid, info.context.cookies)
+        mail_to = await get_role_emails("cc") + await get_role_emails("slo")
+        mail_subject = CREATE_ACHIEVEMENT_SUBJECT.safe_substitute(
+            achievement = created_achievement.name
         )
+        mail_body = CREATE_ACHIEVEMENT_BODY.safe_substitute(
+            club = club["name"],
+            achievement = created_achievement.name,
+            achievementlink = get_achievement_link(created_achievement.code),
+            approved_by = "Clubs_Council"
+        )
+        await trigger_mail(
+            mail_uid,
+            mail_subject,
+            mail_body,
+            toRecipients=mail_to,
+            cookies=info.context.cookies,
+        )   
     return AchievementDetails.from_pydantic(created_achievement)
     
 
@@ -250,6 +292,18 @@ async def approveAchievement(achievement_id: str, info:Info) -> AchievementDetai
         raise Exception("Deleted achievements cannot be approved")
     elif current_ref["status"]["state"] =="approved":
         raise Exception("Achievement has already been approved")
+
+    achievement = Achievement.model_validate(current_ref)
+    
+    club_emails = []
+    club_names = []
+    
+    for club_id in achievement.clubids:
+        club = await get_club_details(club_id, info.context.cookies)
+        if not club:
+            raise Exception("Club does not exist.")
+        club_emails.append(club["email"])
+        club_names.append(club["name"])
     
     updates = {"status.state": Achievement_Status_State.approved, "status.approved_datetime": datetime.now(TIMEZONE), "status.approved_by": user["uid"], "status.rejected_by": None, "status.rejected_datetime": None }
     updation = {"$set":updates}
@@ -258,6 +312,48 @@ async def approveAchievement(achievement_id: str, info:Info) -> AchievementDetai
     if not updated_ref or updated_ref.matched_count==0:
         raise Exception("Achievement not updated in the database")
     achievement_ref = await achievementsdb.find_one(query)
+
+    if achievement.status.state != Achievement_Status_State.approved:
+        if user["role"] == "cc":
+            mail_to = club_emails
+            mail_subject = APPROVED_ACHIEVEMENT_SUBJECT.safe_substitute(
+                achievement_id = achievement.code,
+                achievement = achievement.name,
+            )
+            mail_body = APPROVED_ACHIEVEMENT_BODY_FOR_CLUB.safe_substitute(
+                clubs = club_names,
+                achievement = achievement.name,
+                achievementlink = get_achievement_link(achievement.code),
+                approved_by = "Clubs_Council"
+            )
+            await trigger_mail(
+                user["uid"],
+                mail_subject,
+                mail_body,
+                toRecipients=mail_to,
+                cookies=info.context.cookies,
+            )
+        
+        elif user["role"] == "slo":
+            mail_to = club_emails
+            cc_to = await get_role_emails("cc")
+            mail_subject = APPROVED_ACHIEVEMENT_SUBJECT.safe_substitute(
+                achievement_id = achievement.code,
+                achievement = achievement.name,
+            )
+            mail_body = APPROVED_ACHIEVEMENT_BODY_FOR_CLUB.safe_substitute(
+                achievement = achievement.name,
+                achievementlink = get_achievement_link(achievement.code),
+                approved_by = "Student Life Office"
+            )
+            await trigger_mail(
+                user["uid"],
+                mail_subject,
+                mail_body,
+                toRecipients=mail_to,
+                ccRecipients=cc_to,
+                cookies=info.context.cookies,
+            )
     return AchievementDetails.from_pydantic(Achievement.model_validate(achievement_ref))
 
 
@@ -295,6 +391,18 @@ async def rejectAchievement(achievement_id:str, info:Info) -> AchievementDetails
         raise Exception("Approved achievements cannot be rejected")
     elif current_ref["status"]["state"] == "rejected":
         raise Exception("Achievement has already been rejected")
+
+    achievement = Achievement.model_validate(current_ref)
+    
+    club_emails = []
+    club_names = []
+    
+    for club_id in achievement.clubids:
+        club = await get_club_details(club_id, info.context.cookies)
+        if not club:
+            raise Exception("Club does not exist.")
+        club_emails.append(club["email"])
+        club_names.append(club["name"])
     
     updates = {"status.state": Achievement_Status_State.rejected, "status.rejected_datetime": datetime.now(TIMEZONE), "status.rejected_by": user["uid"]}
     updation = {"$set": updates}
@@ -303,6 +411,50 @@ async def rejectAchievement(achievement_id:str, info:Info) -> AchievementDetails
     if not updated_ref or updated_ref.matched_count==0:
         raise Exception("Achievement not updated in the database")
     achievement_ref = await achievementsdb.find_one(query)
+
+    if achievement.status.state != Achievement_Status_State.rejected:
+        if user["role"] == "cc":
+            mail_to = club_emails
+            mail_subject = REJECT_ACHIEVEMENT_SUBJECT.safe_substitute(
+                achievement_id = achievement.code,
+                achievement = achievement.name,
+            )
+            mail_body = REJECT_ACHIEVEMENT_BODY_FOR_CLUB.safe_substitute(
+                clubs = club_names,
+                achievement = achievement.name,
+                achievementlink = get_achievement_link(achievement.code),
+                rejected_by = "Clubs_Council"
+            )
+            await trigger_mail(
+                user["uid"],
+                mail_subject,
+                mail_body,
+                toRecipients=mail_to,
+                cookies=info.context.cookies,
+            )
+    
+        elif user["role"] == "slo":
+            mail_to = club_emails
+            cc_to = await get_role_emails("cc")
+            mail_subject = REJECT_ACHIEVEMENT_SUBJECT.safe_substitute(
+                achievement_id = achievement.code,
+                achievement = achievement.name,
+            )
+            mail_body = REJECT_ACHIEVEMENT_BODY_FOR_CLUB.safe_substitute(
+                clubs = club_names,
+                achievement = achievement.name,
+                achievementlink = get_achievement_link(achievement.code),
+                rejected_by = "Student Life Office"
+            )
+    
+            await trigger_mail(
+                user["uid"],
+                mail_subject,
+                mail_body,
+                toRecipients=mail_to,
+                ccRecipients=cc_to,
+                cookies=info.context.cookies,
+            )
     return AchievementDetails.from_pydantic(Achievement.model_validate(achievement_ref))
 
 Mutations= [rejectAchievement, 
