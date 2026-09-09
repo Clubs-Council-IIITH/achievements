@@ -1,14 +1,16 @@
-from httpx import AsyncClient
-from typing import List
-import secrets
+import html
 import os
 import re
-import html
-from zoneinfo import ZoneInfo
+import secrets
 from datetime import datetime
+from zoneinfo import ZoneInfo
+
+from httpx import AsyncClient
+
 TIMEZONE = ZoneInfo("Asia/Kolkata")
 
 inter_communication_secret = os.getenv("INTER_COMMUNICATION_SECRET")
+
 
 async def get_user(uid, cookies=None) -> dict | None:
     """
@@ -21,7 +23,7 @@ async def get_user(uid, cookies=None) -> dict | None:
 
     Returns:
         (dict | None):userProfile
-    """  # noqa: E501
+    """
 
     try:
         query = """
@@ -46,7 +48,7 @@ async def get_user(uid, cookies=None) -> dict | None:
         return None
 
 
-async def get_clubs(cookies=None) -> List[dict]:
+async def get_clubs(cookies=None) -> list[dict]:
     """
     Function to call a query to the Clubs service resolved by the allClubs
     method, fetches info about all clubs.
@@ -76,14 +78,15 @@ async def get_clubs(cookies=None) -> List[dict]:
         return response.json()["data"]["allClubs"]
     except Exception:
         return []
-    
+
+
 async def get_club(cid, cookies=None) -> dict:
     """
     Function to call a query to the Clubs service resolved by the club
     method, fetches info about a particular club with a given club id.
 
     Args:
-        cid (str): code of the club to be fetched. 
+        cid (str): code of the club to be fetched.
         cookies (dict): cookies. Defaults to None.
 
     Returns:
@@ -104,13 +107,15 @@ async def get_club(cid, cookies=None) -> dict:
         variables = {"clubid": {"cid": cid}}
         async with AsyncClient(cookies=cookies) as client:
             response = await client.post(
-                "http://gateway/graphql", json={"query": query, "variables": variables}
+                "http://gateway/graphql",
+                json={"query": query, "variables": variables},
             )
         return response.json()["data"]["club"]
     except Exception:
         return {}
 
-async def get_role_emails(role: str) -> List[str]:
+
+async def get_role_emails(role: str) -> list[str]:
     """
     Brings all the emails of members belonging to a role
 
@@ -160,6 +165,7 @@ async def get_role_emails(role: str) -> List[str]:
     except Exception:
         return []
 
+
 async def get_club_details(
     clubid: str,
     cookies,
@@ -197,6 +203,7 @@ async def get_club_details(
     except Exception:
         return {}
 
+
 async def get_achievement_code(submissiontime: datetime) -> str:
     """
     generate achievement code based on submission time and date
@@ -210,7 +217,8 @@ async def get_achievement_code(submissiontime: datetime) -> str:
 
     event_code_suffix = secrets.token_hex(2).upper()
     event_code_prefix = submissiontime.strftime("%Y%m%d%H%M%S")
-    return f"{event_code_prefix}{event_code_suffix}"  #YYYYMMDDHHSSXXXX
+    return f"{event_code_prefix}{event_code_suffix}"  # YYYYMMDDHHSSXXXX
+
 
 def get_achievement_link(code) -> str:
     """
@@ -224,6 +232,7 @@ def get_achievement_link(code) -> str:
     """
     host = os.environ.get("HOST", "http://localhost")
     return f"{host}/manage/achievements/code/{code}"
+
 
 # method used to convert text to html
 def convert_to_html(text) -> str:

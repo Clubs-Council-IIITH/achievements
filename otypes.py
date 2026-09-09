@@ -2,18 +2,21 @@
 Types and Inputs for achievements subgraph
 """
 
-import strawberry 
-from typing import Union, Dict
-from strawberry.fastapi import BaseContext
+import json
 from functools import cached_property
+
+import strawberry
+from strawberry.fastapi import BaseContext
 from strawberry.types import Info as _Info
 from strawberry.types.info import RootValueType
-import json
+
 from models import (
-     Achievement, 
-     InputCreateAchievementsBaseModel,
-     InputEditAchievementsBaseModel,
-     Achievement_Status)
+    Achievement,
+    Achievement_Status,
+    InputCreateAchievementsBaseModel,
+    InputEditAchievementsBaseModel,
+)
+
 
 class Context(BaseContext):
     """
@@ -22,7 +25,7 @@ class Context(BaseContext):
     """
 
     @cached_property
-    def user(self) -> Union[Dict, None]:
+    def user(self) -> dict | None:
         if not self.request:
             return None
 
@@ -30,7 +33,7 @@ class Context(BaseContext):
         return user
 
     @cached_property
-    def cookies(self) -> Union[Dict, None]:
+    def cookies(self) -> dict | None:
         if not self.request:
             return None
 
@@ -41,12 +44,14 @@ class Context(BaseContext):
 Info = _Info[Context, RootValueType]
 """custom info Type for user metadata"""
 
-@strawberry.experimental.pydantic.type(model= Achievement_Status, all_fields=True)
+
+@strawberry.experimental.pydantic.type(
+    model=Achievement_Status, all_fields=True
+)
 class AchievementStatusType:
     """
     Type for status details of an achievement
     """
-    pass
 
 
 @strawberry.experimental.pydantic.type(model=Achievement, all_fields=True)
@@ -54,19 +59,21 @@ class AchievementDetails:
     """
     Type for returning all the details of an achievement
     """
-    pass
 
-@strawberry.experimental.pydantic.input(model=InputCreateAchievementsBaseModel, all_fields=True)
+
+@strawberry.experimental.pydantic.input(
+    model=InputCreateAchievementsBaseModel, all_fields=True
+)
 class CreateAchievementDetails:
     """
     Type to act as input to the create achievement mutation
     """
-    pass
 
-@strawberry.experimental.pydantic.input(model = InputEditAchievementsBaseModel, all_fields=True)
+
+@strawberry.experimental.pydantic.input(
+    model=InputEditAchievementsBaseModel, all_fields=True
+)
 class EditAchievementDetails:
     """
     Type to act as input to the edit achievement mutation
     """
-    pass
-

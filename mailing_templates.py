@@ -8,7 +8,7 @@ from string import Template
 # Email Templates
 
 # email template requesting approval for an achievement to
-# CC(Clubs Council) and SLO(Student Life Office) 
+# CC(Clubs Council) and SLO(Student Life Office)
 # common subject but 3 different bodies
 
 CREATE_ACHIEVEMENT_SUBJECT = Template(

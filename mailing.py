@@ -1,5 +1,4 @@
 import os
-from typing import List
 
 from httpx import AsyncClient
 
@@ -14,8 +13,8 @@ async def trigger_mail(
     subject: str,
     body: str,
     cookies: dict | None = None,
-    toRecipients: List[str] = [],
-    ccRecipients: List[str] = [],
+    toRecipients: list[str] | None = None,
+    ccRecipients: list[str] | None = None,
 ) -> None:
     """
     Method triggers a mutation request, resolved by the sendMail resolver from
@@ -29,6 +28,11 @@ async def trigger_mail(
         ccRecipients (List[str]): The list of cc recipients.
         cookies (dict): The cookies. Defaults to None.
     """
+
+    if toRecipients is None:
+        toRecipients = []
+    if ccRecipients is None:
+        ccRecipients = []
 
     try:
         query = """
@@ -62,4 +66,4 @@ async def trigger_mail(
             )
 
     except Exception:
-        return None
+        return

@@ -20,7 +20,7 @@ indent-width = 4
 
 [tool.ruff.lint]
 # line too long, unsorted imports, unused imports
-extend-select = ["E501", "I"]
+select = ["E", "F", "I"]
 
 [tool.ruff.format]
 quote-style = "double"

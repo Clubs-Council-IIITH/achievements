@@ -2,19 +2,17 @@
 Queries for achievements
 """
 
-from typing import List
-from bson import ObjectId
-
 import strawberry
+
 from db import achievementsdb
 from models import Achievement
-from otypes import AchievementDetails, Info
 from mtypes import Achievement_Status_State
-from utils import get_club, get_user, get_clubs
+from otypes import AchievementDetails, Info
+from utils import get_club, get_user
 
 
 @strawberry.field
-async def allAchievements(info: Info) -> List[AchievementDetails]:
+async def allAchievements(info: Info) -> list[AchievementDetails]:
     """
     Fetches all the achievements
 
@@ -27,71 +25,70 @@ async def allAchievements(info: Info) -> List[AchievementDetails]:
     user = info.context.user
     achievements = []
 
-    if (user is not None and user["role"] in ["cc", "slo"]):
+    if user is not None and user["role"] in ["cc", "slo"]:
         achievements = await achievementsdb.find().to_list(length=None)
     else:
-        achievements =await achievementsdb.find({"status.state": "approved"}).to_list(
-            length=None
-        )
+        achievements = await achievementsdb.find(
+            {"status.state": "approved"}
+        ).to_list(length=None)
 
     return [
-        AchievementDetails.from_pydantic(Achievement.model_validate(achievement))
+        AchievementDetails.from_pydantic(
+            Achievement.model_validate(achievement)
+        )
         for achievement in achievements
     ]
 
 
 @strawberry.field
-async def achievementById(achievementid: str, info: Info) -> AchievementDetails:
+async def achievementById(
+    achievementid: str, info: Info
+) -> AchievementDetails:
     """
     Fetches an achievement with the given id
 
     Args:
         achievementid (str): The id of the achievement to be fetched.
         info (otypes.Info): The context information of user for the request
-    
+
     Returns:
-        (otypes.AchievementDetails): Detaile regarding the achievement with the given id
+        (otypes.AchievementDetails): Detail regarding the achievement
+            with the given id
 
     Raises:
-        Exception: Cannot access the achievement. Either you do not have permission to access it or it does not exist.
+        Exception: Cannot access the achievement. Either you do not have
+            permission to access it or it does not exist.
 
     """
     user = info.context.user
     achievement = await achievementsdb.find_one({"_id": achievementid})
 
-    allclubs = await get_clubs(info.context.cookies)
-    list_allclubs = list()
-    for club in allclubs:
-        list_allclubs.append(club["cid"])
-
-    if (
-        achievement is None
-        or (
-            achievement["status"]["state"]
-            not in {Achievement_Status_State.approved.value}
-            and (
-                user is None
-                or (
-                    user["role"] not in {"cc", "slc", "slo"}
-                    and (
-                        user["role"] != "club"
-                        or (
-                            user["uid"] not in achievement["clubids"]
-                        )
-                    )
+    if achievement is None or (
+        achievement["status"]["state"]
+        not in {Achievement_Status_State.approved.value}
+        and (
+            user is None
+            or (
+                user["role"] not in {"cc", "slc", "slo"}
+                and (
+                    user["role"] != "club"
+                    or (user["uid"] not in achievement["clubids"])
                 )
             )
         )
     ):
         raise Exception(
-            "Can not access achievement. Either it does not exist or user does not have perms."  
+            "Can not access achievement. "
+            "Either it does not exist or user does not have perms."
         )
-    
-    return AchievementDetails.from_pydantic(Achievement.model_validate(achievement))
+
+    return AchievementDetails.from_pydantic(
+        Achievement.model_validate(achievement)
+    )
 
 
 @strawberry.field
-async def achievementsByClub(cid: str, info:Info) -> List[AchievementDetails]:
+async def achievementsByClub(cid: str, info: Info) -> list[AchievementDetails]:
     """
     Fetches list of achievements with the give clubid
 
@@ -100,7 +97,8 @@ async def achievementsByClub(cid: str, info:Info) -> List[AchievementDetails]:
     info (otypes.Info): The context information of user for the request.
 
     Returns:
-    (List[otypes.AchievementDetails]): A list of Achievements which matches the cubid
+    (List[otypes.AchievementDetails]): A list of Achievements
+        which matches the clubid
 
     """
     user = info.context.user
@@ -108,22 +106,16 @@ async def achievementsByClub(cid: str, info:Info) -> List[AchievementDetails]:
 
     if club is None:
         raise Exception("Club with given id does not exist")
-    
-    can_access = (
-        user is not None
-        and (
-            user["role"] in ["cc", "slo"]
-            or (
-                user["role"] == "club"
-                and user["uid"] == club["cid"]  
-            )
-        )
+
+    can_access = user is not None and (
+        user["role"] in ["cc", "slo"]
+        or (user["role"] == "club" and user["uid"] == club["cid"])
     )
 
     if can_access:
         achievements = await achievementsdb.find(
             {
-            "clubids": cid,
+                "clubids": cid,
             }
         ).to_list(None)
     else:
@@ -132,13 +124,15 @@ async def achievementsByClub(cid: str, info:Info) -> List[AchievementDetails]:
         ).to_list(None)
 
     return [
-        AchievementDetails.from_pydantic(Achievement.model_validate(achievement))
+        AchievementDetails.from_pydantic(
+            Achievement.model_validate(achievement)
+        )
         for achievement in achievements
     ]
-    
+
 
 @strawberry.field
-async def achievementsByUser(uid: str, info:Info) -> List[AchievementDetails]:
+async def achievementsByUser(uid: str, info: Info) -> list[AchievementDetails]:
     """
     Fetches list of achievements with the given userid
 
@@ -146,8 +140,9 @@ async def achievementsByUser(uid: str, info:Info) -> List[AchievementDetails]:
     uid (str) : The id of the user whose achievements are to be fetched.
     info (otypes.Info): The context information of user for the request.
 
-    Returns: 
-    (List[otypes.AchievementDetails]): A list of Achievements which matches the userid
+    Returns:
+    (List[otypes.AchievementDetails]): A list of Achievements
+        which matches the userid
 
     """
     user = info.context.user
@@ -157,26 +152,29 @@ async def achievementsByUser(uid: str, info:Info) -> List[AchievementDetails]:
     if curr_user is None:
         raise Exception("User with given id does not exist")
 
-    if (user is not None and user["role"] in ["cc", "slo"]):
-        achievements = await achievementsdb.find(
-            {"userids": uid}
-        ).to_list(None)
+    if user is not None and user["role"] in ["cc", "slo"]:
+        achievements = await achievementsdb.find({"userids": uid}).to_list(
+            None
+        )
     else:
         achievements = await achievementsdb.find(
-            {"userids": uid,"status.state": "approved"}
+            {"userids": uid, "status.state": "approved"}
         ).to_list(None)
 
     return [
-        AchievementDetails.from_pydantic(Achievement.model_validate(achievement))
+        AchievementDetails.from_pydantic(
+            Achievement.model_validate(achievement)
+        )
         for achievement in achievements
     ]
+
 
 @strawberry.field
 async def achievementid(code: str, info: Info) -> str:
     """
-    method returns achievementid of the achievement with the given achievement code
+    Returns achievementid of the achievement with given achievement code.
 
-    Args: 
+    Args:
         code (str): The code of the achievement to be fetched.
         info (otypes.Info): The context information of user for the request.
 
@@ -195,7 +193,7 @@ async def achievementid(code: str, info: Info) -> str:
     return achievement["_id"]
 
 
-#register all the queries
+# register all the queries
 queries = [
     allAchievements,
     achievementById,
