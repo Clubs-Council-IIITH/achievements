@@ -23,9 +23,9 @@ async def allAchievements(info: Info) -> list[AchievementDetails]:
         (List[otypes.AchievementDetails]): A list of all Achievements
     """
     user = info.context.user
-    achievements = []
+    user_role = user.get("role") if isinstance(user, dict) else None
 
-    if user is not None and user["role"] in ["cc", "slo"]:
+    if user_role in ["cc", "slo"]:
         achievements = await achievementsdb.find().to_list(length=None)
     else:
         achievements = await achievementsdb.find(
@@ -61,6 +61,9 @@ async def achievementById(
 
     """
     user = info.context.user
+    user_role = user.get("role") if isinstance(user, dict) else None
+    user_uid = user.get("uid") if isinstance(user, dict) else None
+
     achievement = await achievementsdb.find_one({"_id": achievementid})
 
     if achievement is None or (
@@ -69,10 +72,10 @@ async def achievementById(
         and (
             user is None
             or (
-                user["role"] not in {"cc", "slc", "slo"}
+                user_role not in {"cc", "slc", "slo"}
                 and (
-                    user["role"] != "club"
-                    or (user["uid"] not in achievement["clubids"])
+                    user_role != "club"
+                    or (user_uid not in achievement.get("clubids", []))
                 )
             )
         )
@@ -102,14 +105,17 @@ async def achievementsByClub(cid: str, info: Info) -> list[AchievementDetails]:
 
     """
     user = info.context.user
+    user_role = user.get("role") if isinstance(user, dict) else None
+    user_uid = user.get("uid") if isinstance(user, dict) else None
+
     club = await get_club(cid, info.context.cookies)
 
     if club is None:
         raise Exception("Club with given id does not exist")
 
     can_access = user is not None and (
-        user["role"] in ["cc", "slo"]
-        or (user["role"] == "club" and user["uid"] == club["cid"])
+        user_role in ["cc", "slo"]
+        or (user_role == "club" and user_uid == club.get("cid"))
     )
 
     if can_access:
@@ -146,16 +152,17 @@ async def achievementsByUser(uid: str, info: Info) -> list[AchievementDetails]:
 
     """
     user = info.context.user
+    user_role = user.get("role") if isinstance(user, dict) else None
+    user_uid = user.get("uid") if isinstance(user, dict) else None
 
-    curr_user = await get_user(uid, info.context.cookies)
-
-    if curr_user is None:
-        raise Exception("User with given id does not exist")
-
-    if user is not None and user["role"] in ["cc", "slo"]:
+    if user_role in ["cc", "slo"]:
         achievements = await achievementsdb.find({"userids": uid}).to_list(
             None
         )
+    elif user_uid == uid:
+        achievements = await achievementsdb.find(
+            {"userids": uid, "status.state": {"$ne": "deleted"}}
+        ).to_list(None)
     else:
         achievements = await achievementsdb.find(
             {"userids": uid, "status.state": "approved"}
