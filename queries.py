@@ -8,7 +8,7 @@ from db import achievementsdb
 from models import Achievement
 from mtypes import Achievement_Status_State
 from otypes import AchievementDetails, Info
-from utils import get_club, get_user
+from utils import get_club
 
 
 @strawberry.field
