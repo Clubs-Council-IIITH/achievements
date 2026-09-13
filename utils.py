@@ -1,10 +1,12 @@
 import html
+import json
 import os
 import re
 import secrets
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import httpx
 from httpx import AsyncClient
 
 TIMEZONE = ZoneInfo("Asia/Kolkata")
@@ -44,7 +46,7 @@ async def get_user(uid, cookies=None) -> dict | None:
             )
 
         return response.json()["data"]["userProfile"]
-    except Exception:
+    except httpx.HTTPError, json.JSONDecodeError, KeyError:
         return None
 
 
@@ -76,7 +78,7 @@ async def get_clubs(cookies=None) -> list[dict]:
                 "http://gateway/graphql", json={"query": query}
             )
         return response.json()["data"]["allClubs"]
-    except Exception:
+    except httpx.HTTPError, json.JSONDecodeError, KeyError:
         return []
 
 
@@ -111,7 +113,7 @@ async def get_club(cid, cookies=None) -> dict:
                 json={"query": query, "variables": variables},
             )
         return response.json()["data"]["club"]
-    except Exception:
+    except httpx.HTTPError, json.JSONDecodeError, KeyError:
         return {}
 
 
@@ -162,7 +164,7 @@ async def get_role_emails(role: str) -> list[str]:
                 )
                 emails.append(resp.json()["data"]["userProfile"]["email"])
         return emails
-    except Exception:
+    except httpx.HTTPError, json.JSONDecodeError, KeyError:
         return []
 
 
@@ -200,7 +202,7 @@ async def get_club_details(
                 json={"query": query, "variables": variable},
             )
         return response.json()["data"]["club"]
-    except Exception:
+    except httpx.HTTPError, json.JSONDecodeError, KeyError:
         return {}
 
 

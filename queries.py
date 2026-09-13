@@ -1,3 +1,5 @@
+from graphql import GraphQLError
+
 """
 Queries for achievements
 """
@@ -80,7 +82,7 @@ async def achievementById(
             )
         )
     ):
-        raise Exception(
+        raise GraphQLError(
             "Can not access achievement. "
             "Either it does not exist or user does not have perms."
         )
@@ -111,7 +113,7 @@ async def achievementsByClub(cid: str, info: Info) -> list[AchievementDetails]:
     club = await get_club(cid, info.context.cookies)
 
     if club is None:
-        raise Exception("Club with given id does not exist")
+        raise GraphQLError("Club with given id does not exist")
 
     can_access = user is not None and (
         user_role in ["cc", "slo"]
@@ -195,7 +197,7 @@ async def achievementid(code: str, info: Info) -> str:
     achievement = await achievementsdb.find_one({"code": code})
 
     if achievement is None:
-        raise Exception("Achievement with given code does not exist.")
+        raise GraphQLError("Achievement with given code does not exist.")
 
     return achievement["_id"]
 

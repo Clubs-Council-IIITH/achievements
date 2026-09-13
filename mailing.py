@@ -1,5 +1,7 @@
 import os
 
+import httpx
+from graphql import GraphQLError
 from httpx import AsyncClient
 
 from utils import convert_to_html
@@ -61,9 +63,9 @@ async def trigger_mail(
                     json={"query": query, "variables": variables},
                 )
         else:
-            raise Exception(
+            raise GraphQLError(
                 "Couldn't find cookie, cannot send email without cookies!"
             )
 
-    except Exception:
+    except httpx.HTTPError, GraphQLError, KeyError:
         return

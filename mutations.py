@@ -2,6 +2,8 @@ from datetime import datetime
 
 import strawberry
 from fastapi.encoders import jsonable_encoder
+from graphql import GraphQLError
+from pymongo.errors import PyMongoError
 
 from db import achievementsdb
 from mailing import trigger_mail
@@ -58,34 +60,34 @@ async def createAchievement(
     user = info.context.user
     # check if user is authenticated and has enough permissions
     if not user:
-        raise Exception("You are not authenticated")
+        raise GraphQLError("You are not authenticated")
     if user["role"] not in ["club", "slo", "cc", "slc"] or (
         user["role"] == "club" and user["uid"] not in details.clubids
     ):
-        raise Exception(
+        raise GraphQLError(
             "You do not have the permissions to create this achievement"
         )
 
     if len(details.userids) == 0:
-        raise Exception("User ids cannot be left empty")
+        raise GraphQLError("User ids cannot be left empty")
 
     if len(details.clubids) == 0:
-        raise Exception("Clubids cannot be left empty")
+        raise GraphQLError("Clubids cannot be left empty")
     # checks to identify if all the clubids are valid
     for club_id in details.clubids:
         club = await get_club(club_id, cookies=info.context.cookies)
         if len(club.keys()) == 0:
-            raise Exception("Contains an invalid club id")
+            raise GraphQLError("Contains an invalid club id")
 
     # checks to identify if all user ids are valid
     for user_id in details.userids:
         user_result = await get_user(user_id, cookies=info.context.cookies)
         if not user_result or len(user_result.keys()) == 0:
-            raise Exception("Contains an invalid user id")
+            raise GraphQLError("Contains an invalid user id")
 
     # checks to identify if starting date is lower or equal to ending date
     if details.dateperiod[0] > details.dateperiod[1]:
-        raise Exception("Starting date is greater than ending date")
+        raise GraphQLError("Starting date is greater than ending date")
     achievements_instance = Achievement(
         name=details.name,
         clubids=details.clubids,
@@ -117,8 +119,8 @@ async def createAchievement(
                 jsonable_encoder(achievements_instance)
             )
         ).inserted_id
-    except Exception:
-        raise Exception("Insertion failed in the database")
+    except PyMongoError:
+        raise GraphQLError("Insertion failed in the database")
     created_achievement = Achievement.model_validate(
         await achievementsdb.find_one({"_id": created_id})
     )
@@ -178,38 +180,40 @@ async def editAchievement(
     """
     user = info.context.user
     if not user:
-        raise Exception("You are not authenticated")
+        raise GraphQLError("You are not authenticated")
     # check if appropriate achievement even exists
     current_ref = await achievementsdb.find_one({"_id": str(details.id)})
     if not current_ref:
-        raise Exception("Achievement does not exist")
+        raise GraphQLError("Achievement does not exist")
     if current_ref["status"]["state"] == "deleted":
-        raise Exception("Deleted achievements cannot be edited")
+        raise GraphQLError("Deleted achievements cannot be edited")
     elif current_ref["status"]["state"] == "rejected":
-        raise Exception("Rejected achievements cannot be edited")
+        raise GraphQLError("Rejected achievements cannot be edited")
 
     # check if user has appropriate permissions
     if user["role"] not in ["slo", "cc", "slc"]:
-        raise Exception("You do not have permissions to edit this achievement")
+        raise GraphQLError(
+            "You do not have permissions to edit this achievement"
+        )
     if (
         details.dateperiod is not None
         and details.dateperiod[0] > details.dateperiod[1]
     ):
-        raise Exception("Starting date is greater than ending date")
+        raise GraphQLError("Starting date is greater than ending date")
 
     # check if new clubids are valid
     if details.clubids is not None:
         for club_id in details.clubids:
             club = await get_club(club_id, cookies=info.context.cookies)
             if len(club.keys()) == 0:
-                raise Exception("Contains an invalid clubid")
+                raise GraphQLError("Contains an invalid clubid")
 
     # checks to identify if all user ids are valid
     if details.userids is not None:
         for user_id in details.userids:
             user_result = await get_user(user_id, cookies=info.context.cookies)
             if not user_result or len(user_result.keys()) == 0:
-                raise Exception("Contains an invalid userid")
+                raise GraphQLError("Contains an invalid userid")
 
     updates = {}
     if details.name is not None:
@@ -238,7 +242,7 @@ async def editAchievement(
 
     updated_ref = await achievementsdb.update_one(query, updation)
     if updated_ref.matched_count == 0:
-        raise Exception("Update failed in the database")
+        raise GraphQLError("Update failed in the database")
     achievement_ref = await achievementsdb.find_one({"_id": str(details.id)})
     return AchievementDetails.from_pydantic(
         Achievement.model_validate(achievement_ref)
@@ -265,19 +269,19 @@ async def deleteAchievement(
     """
     user = info.context.user
     if not user:
-        raise Exception("You are not authenticated")
+        raise GraphQLError("You are not authenticated")
 
     if user["role"] not in ["slo", "cc", "slc"]:
-        raise Exception(
+        raise GraphQLError(
             "You do not have the permissions to delete an achievement"
         )
 
     query = {"_id": achievement_id}
     current_ref = await achievementsdb.find_one(query)
     if not current_ref:
-        raise Exception("Achievement not found")
+        raise GraphQLError("Achievement not found")
     if current_ref["status"]["state"] == "deleted":
-        raise Exception("Achievement was already deleted")
+        raise GraphQLError("Achievement was already deleted")
 
     updates = {
         "status.state": Achievement_Status_State.deleted,
@@ -287,7 +291,7 @@ async def deleteAchievement(
     updation = {"$set": updates}
     updated_ref = await achievementsdb.update_one(query, updation)
     if not updated_ref or updated_ref.matched_count == 0:
-        raise Exception("Achievement not updated in the database")
+        raise GraphQLError("Achievement not updated in the database")
     achievement_ref = await achievementsdb.find_one(query)
     return AchievementDetails.from_pydantic(
         Achievement.model_validate(achievement_ref)
@@ -315,18 +319,18 @@ async def approveAchievement(
     """
     user = info.context.user
     if not user:
-        raise Exception("You are not authenticated")
+        raise GraphQLError("You are not authenticated")
     if user["role"] not in ["slo", "cc", "slc"]:
-        raise Exception("You do not have the permissions to do this change")
+        raise GraphQLError("You do not have the permissions to do this change")
     query = {"_id": achievement_id}
     current_ref = await achievementsdb.find_one(query)
 
     if not current_ref:
-        raise Exception("Achievement does not exist")
+        raise GraphQLError("Achievement does not exist")
     if current_ref["status"]["state"] == "deleted":
-        raise Exception("Deleted achievements cannot be approved")
+        raise GraphQLError("Deleted achievements cannot be approved")
     elif current_ref["status"]["state"] == "approved":
-        raise Exception("Achievement has already been approved")
+        raise GraphQLError("Achievement has already been approved")
 
     achievement = Achievement.model_validate(current_ref)
 
@@ -336,7 +340,7 @@ async def approveAchievement(
     for club_id in achievement.clubids:
         club = await get_club_details(club_id, info.context.cookies)
         if not club:
-            raise Exception("Club does not exist.")
+            raise GraphQLError("Club does not exist.")
         club_emails.append(club["email"])
         club_names.append(club["name"])
 
@@ -351,7 +355,7 @@ async def approveAchievement(
 
     updated_ref = await achievementsdb.update_one(query, updation)
     if not updated_ref or updated_ref.matched_count == 0:
-        raise Exception("Achievement not updated in the database")
+        raise GraphQLError("Achievement not updated in the database")
     achievement_ref = await achievementsdb.find_one(query)
 
     if achievement.status.state != Achievement_Status_State.approved:
@@ -423,20 +427,20 @@ async def rejectAchievement(
     """
     user = info.context.user
     if not user:
-        raise Exception("You are not authenticated")
+        raise GraphQLError("You are not authenticated")
     if user["role"] not in ["slo", "cc", "slc"]:
-        raise Exception("You do not have the permissions to do this change")
+        raise GraphQLError("You do not have the permissions to do this change")
     query = {"_id": achievement_id}
     current_ref = await achievementsdb.find_one(query)
 
     if not current_ref:
-        raise Exception("Achievement does not exist")
+        raise GraphQLError("Achievement does not exist")
     if current_ref["status"]["state"] == "deleted":
-        raise Exception("Deleted achievements cannot be rejected")
+        raise GraphQLError("Deleted achievements cannot be rejected")
     elif current_ref["status"]["state"] == "approved":
-        raise Exception("Approved achievements cannot be rejected")
+        raise GraphQLError("Approved achievements cannot be rejected")
     elif current_ref["status"]["state"] == "rejected":
-        raise Exception("Achievement has already been rejected")
+        raise GraphQLError("Achievement has already been rejected")
 
     achievement = Achievement.model_validate(current_ref)
 
@@ -446,7 +450,7 @@ async def rejectAchievement(
     for club_id in achievement.clubids:
         club = await get_club_details(club_id, info.context.cookies)
         if not club:
-            raise Exception("Club does not exist.")
+            raise GraphQLError("Club does not exist.")
         club_emails.append(club["email"])
         club_names.append(club["name"])
 
@@ -459,7 +463,7 @@ async def rejectAchievement(
 
     updated_ref = await achievementsdb.update_one(query, updation)
     if not updated_ref or updated_ref.matched_count == 0:
-        raise Exception("Achievement not updated in the database")
+        raise GraphQLError("Achievement not updated in the database")
     achievement_ref = await achievementsdb.find_one(query)
 
     if achievement.status.state != Achievement_Status_State.rejected:

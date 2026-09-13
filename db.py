@@ -21,6 +21,7 @@ Attributes:
 from os import getenv
 
 from pymongo import AsyncMongoClient
+from pymongo.errors import PyMongoError
 
 MONGO_URI = "mongodb://{}:{}@mongo:{}/".format(
     getenv("MONGO_USERNAME", default="username"),
@@ -47,5 +48,5 @@ async def ensure_achievements_index():
             await achievementsdb.create_index("userids", name="userids")
         else:
             print("userids index already exists")
-    except Exception:
-        pass
+    except PyMongoError as e:
+        print(f"Warning: could not ensure achievements index: {e}")
