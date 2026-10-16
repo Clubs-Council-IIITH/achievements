@@ -1,16 +1,10 @@
-from bson import ObjectId
 from enum import StrEnum, auto
-from pydantic_core import core_schema
-from pydantic import (
-    StringConstraints,    
-)
-from typing import (
-    Annotated, 
-    Any,
-    
-)
-import strawberry
+from typing import Annotated, Any
 
+import strawberry
+from bson import ObjectId
+from pydantic import StringConstraints
+from pydantic_core import core_schema
 
 very_short_str_type = Annotated[
     str, StringConstraints(min_length=1, max_length=200)
@@ -31,6 +25,7 @@ long_str_type = Annotated[
     StringConstraints(max_length=10000),
 ]
 """ long string type with max length 10000"""
+
 
 class PyObjectId(ObjectId):
     """
@@ -58,24 +53,25 @@ class PyObjectId(ObjectId):
     def __get_pydantic_json_schema__(cls, field_schema):
         field_schema.update(type="string")
 
+
 @strawberry.enum
 class Achievement_Type(StrEnum):
     """
     Enum to denote the type of achievement
     """
+
     project = auto()
     competition = auto()
     other = auto()
+
 
 @strawberry.enum
 class Achievement_Status_State(StrEnum):
     """
     Enum to denote the state of the achievement
     """
+
     approved = auto()
     pending = auto()
     deleted = auto()
     rejected = auto()
-
-
-

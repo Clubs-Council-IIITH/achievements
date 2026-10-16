@@ -15,10 +15,13 @@ Attributes:
     client (pymongo.AsyncMongoClient): MongoDB async client.
     db (pymongo.asynchronous.database.AsyncDatabase): MongoDB database.
     achievementsdb (pymongo.asynchronous.collection.AsyncCollection): MongoDB
-                                                             achievements collection.
+        achievements collection.
 """
-from pymongo import AsyncMongoClient
+
 from os import getenv
+
+from pymongo import AsyncMongoClient
+from pymongo.errors import PyMongoError
 
 MONGO_URI = "mongodb://{}:{}@mongo:{}/".format(
     getenv("MONGO_USERNAME", default="username"),
@@ -38,15 +41,12 @@ achievementsdb = db.achievements
 async def ensure_achievements_index():
     try:
         if "clubids" not in (await achievementsdb.index_information()):
-            await achievementsdb.create_index("clubids", name ="clubids")
+            await achievementsdb.create_index("clubids", name="clubids")
         else:
             print("clubids index already exists")
         if "userids" not in (await achievementsdb.index_information()):
-            await achievementsdb.create_index("userids", name = "userids")
+            await achievementsdb.create_index("userids", name="userids")
         else:
             print("userids index already exists")
-    except Exception:
-        pass
-
-
-
+    except PyMongoError as e:
+        print(f"Warning: could not ensure achievements index: {e}")
